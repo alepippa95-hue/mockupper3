@@ -5,7 +5,8 @@ on:
 
 jobs:
   build_mac:
-    runs-on: macos-14
+    # Usiamo macos-13 (Intel) così l'app finale funzionerà sia sui Mac Intel sia sui Mac M1/M2/M3/M4 tramite Rosetta!
+    runs-on: macos-13
     steps:
       - name: Scarica il codice
         uses: actions/checkout@v4
@@ -19,12 +20,24 @@ jobs:
         run: pip install pyinstaller pillow
 
       - name: Compila per Mac
-        run: pyinstaller --noconsole --windowed generatore_automatico_cuore.py
+        # ✅ Cancelliamo qualsiasi file .spec esistente per evitare l'errore "not a fat binary"
+        run: |
+          rm -f *.spec
+          pyinstaller --noconsole --windowed generatore_automatico_cuore.py
 
       - name: Comprimi l'App con la cartella magliette
-        # ✅ Copiamo la cartella modelli_magliette dentro la cartella di build e zippiamo tutto insieme
+        # ✅ Cerchiamo la cartella modelli_magliette in modo intelligente (case-insensitive)
         run: |
-          cp -r modelli_magliette dist/
+          FOLDER=$(find . -maxdepth 1 -type d -iname "*modelli*magliette*" | head -n 1)
+          if [ -n "$FOLDER" ]; then
+            echo "Cartella magliette trovata: $FOLDER"
+            cp -r "$FOLDER" dist/modelli_magliette
+          else
+            echo "❌ ERRORE: La cartella delle magliette non è stata trovata sul tuo repository GitHub!"
+            echo "Ecco i file attualmente presenti nel tuo repository:"
+            ls -la
+            exit 1
+          fi
           cd dist
           zip -r App_Mac.zip *.app modelli_magliette
 
