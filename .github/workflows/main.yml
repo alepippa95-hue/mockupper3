@@ -19,13 +19,14 @@ jobs:
         run: pip install pyinstaller pillow
 
       - name: Compila per Mac
-        # Ho rimosso il parametro che faceva crashare Pillow
         run: pyinstaller --noconsole --windowed generatore_automatico_cuore.py
 
-      - name: Comprimi l'App
+      - name: Comprimi l'App con la cartella magliette
+        # ✅ Copiamo la cartella modelli_magliette dentro la cartella di build e zippiamo tutto insieme
         run: |
+          cp -r modelli_magliette dist/
           cd dist
-          zip -r App_Mac.zip *.app
+          zip -r App_Mac.zip *.app modelli_magliette
 
       - name: Salva il file finale
         uses: actions/upload-artifact@v4
