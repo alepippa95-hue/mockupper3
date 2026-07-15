@@ -1,38 +1,54 @@
-name: Build macOS App (Intel x86_64)
+name: Compila App per Mac Intel
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: macos-14  # Runner veloce (Apple Silicon)
-
+  build_mac:
+    # Usiamo macos-14 così parte all'istante senza code!
+    runs-on: macos-14
+    
     steps:
-      - name: Check out repository
+      - name: Scarica il codice
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Configura Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11' 
-          # NOTA: Abbiamo rimosso "architecture: x64" da qui per evitare che l'azione si blocchi!
+          python-version: '3.11'
 
-      - name: Install dependencies (Intel x86_64)
+      - name: Installa dipendenze (Intel x86_64)
         run: |
           # Usiamo 'arch -x86_64' per forzare pip a scaricare le librerie Intel
           arch -x86_64 python -m pip install --upgrade pip
-          arch -x86_64 python -m pip install -r requirements.txt
-          arch -x86_64 python -m pip install pyinstaller
+          arch -x86_64 python -m pip install pyinstaller pillow
 
-      - name: Build with PyInstaller (Intel x86_64)
+      - name: Compila con PyInstaller (Intel x86_64)
         run: |
-          # Compiliamo il binario forzando l'emulazione Intel
-          arch -x86_64 pyinstaller --onefile --windowed main.py
+          rm -f *.spec
+          # Compiliamo il tuo script specifico forzando l'architettura Intel
+          arch -x86_64 pyinstaller --noconsole --windowed generatore_automatico_cuore.py
 
-      - name: Upload Artifact
+      - name: Comprimi l'App con la cartella magliette
+        run: |
+          # Cerchiamo la cartella modelli_magliette
+          FOLDER=$(find . -maxdepth 1 -type d -iname "*modelli*magliette*" | head -n 1)
+          if [ -n "$FOLDER" ]; then
+            echo "Cartella magliette trovata: $FOLDER"
+            cp -r "$FOLDER" dist/modelli_magliette
+          else
+            echo "❌ ERRORE: La cartella 'modelli_magliette' non è stata trovata!"
+            echo "Ecco i file presenti su GitHub:"
+            ls -la
+            exit 1
+          fi
+          
+          cd dist
+          # Zippiamo l'app Intel creata e la cartella delle magliette
+          zip -r App_Mac.zip generatore_automatico_cuore.app modelli_magliette
+
+      - name: Salva il file finale (Artifact)
         uses: actions/upload-artifact@v4
         with:
-          name: macos-intel-executable
-          path: dist/
+          name: App-Mac
+          path: dist/App_Mac.zip
