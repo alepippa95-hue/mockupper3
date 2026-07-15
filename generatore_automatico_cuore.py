@@ -15,18 +15,18 @@ if IS_MAC:
         from tkmacosx import Button as CyberButton
         HAS_TKMACOSX = True
     except ImportError:
-        CyberButton = tk.Button # Bottone di riserva
+        CyberButton = tk.Button  # Bottone di riserva
 else:
     CyberButton = tk.Button
 
 # --- COSTANTI PALETTE CYBERPUNK ---
-BG_DARK = "#06070B"       # Nero profondo cyber
-BG_PANEL = "#0F111A"      # Sfondo dei pannelli (ossidiana)
-NEON_CYAN = "#00F0FF"     # Celeste neon splendente
-NEON_PINK = "#FF007F"     # Rosa neon / Magenta acido
-NEON_YELLOW = "#FCEE09"   # Giallo Cyberpunk 2077
-TEXT_WHITE = "#FFFFFF"    # Testo chiaro principale
-TEXT_GRAY = "#7E8B9B"     # Testo disattivato/secondario
+BG_DARK = "#06070B"        # Nero profondo cyber
+BG_PANEL = "#0F111A"       # Sfondo dei pannelli (ossidiana)
+NEON_CYAN = "#00F0FF"      # Celeste neon splendente
+NEON_PINK = "#FF007F"      # Rosa neon / Magenta acido
+NEON_YELLOW = "#FCEE09"    # Giallo Cyberpunk 2077
+TEXT_WHITE = "#FFFFFF"     # Testo chiaro principale
+TEXT_GRAY = "#7E8B9B"      # Testo disattivato/secondario
 
 class MockupAppPro:
     def __init__(self, root):
@@ -465,8 +465,20 @@ class MockupAppPro:
         self.aggiorna_anteprima()
 
     def sfoglia(self):
+        # --- FIX COMPATIBILITÀ MAC PER EVITARE CRASH 'setAllowedFileTypes' ---
+        # Elenchiamo i formati uno per uno per evitare il crash di macOS
+        file_formats = [
+            ("Immagini PNG", "*.png"),
+            ("Immagini JPG", "*.jpg"),
+            ("Immagini JPEG", "*.jpeg"),
+            ("Immagini PNG (maiuscolo)", "*.PNG"),
+            ("Immagini JPG (maiuscolo)", "*.JPG"),
+            ("Immagini JPEG (maiuscolo)", "*.JPEG"),
+            ("Tutti i file", "*.*")
+        ]
+        
         if self.modo_var.get() == "singolo":
-            path = filedialog.askopenfilename(filetypes=[("Image files", "*.png;*.jpg;*.jpeg")])
+            path = filedialog.askopenfilename(filetypes=file_formats)
             if path:
                 self.file_singolo = path
                 self.lbl_stato.config(text=f"File: {os.path.basename(path)}")
@@ -615,98 +627,116 @@ class MockupAppPro:
                 self.canvas.tag_bind(self.design_item, "<ButtonPress-1>", self.on_drag_start)
                 self.canvas.tag_bind(self.design_item, "<B1-Motion>", self.on_drag_motion)
                 self.canvas.tag_bind(self.design_item, "<ButtonRelease-1>", self.on_drag_release)
-                self.canvas.tag_bind(self.design_item, "<Enter>", lambda e: self.canvas.config(cursor="fleur"))
-                self.canvas.tag_bind(self.design_item, "<Leave>", lambda e: self.canvas.config(cursor=""))
+            else:
+                self.design_item = None
+
         except Exception as e:
-            print(f"Errore caricamento anteprima: {e}")
-
-    def genera_immagine_hd(self, design_path, colore):
-        mockup = Image.open(self.mappa_modelli[colore]).convert("RGBA")
-        if self.rimuovi_sfondo_maglietta.get():
-            mockup = self.scontorna_mockup(mockup)
-
-        formato = self.formato_var.get()
-        if self.sfondo_trasparente.get() and formato != "JPG":
-            risultato = mockup.copy()
-        else:
-            risultato = Image.new("RGBA", mockup.size, "WHITE")
-            risultato.paste(mockup, (0, 0), mockup)
-        
-        design = Image.open(design_path).convert("RGBA")
-        w_percent = (self.resize_width / float(design.size[0]))
-        h_size = int((float(design.size[1]) * float(w_percent)))
-        design = design.resize((self.resize_width, h_size), Image.Resampling.LANCZOS)
-
-        pos_x = int(self.offset_x - (self.resize_width / 2))
-        pos_y = int(self.offset_y - (h_size / 2))
-        risultato.paste(design, (pos_x, pos_y), design)
-        
-        if formato == "JPG":
-            return risultato.convert("RGB")
-        else:
-            return risultato
-
-    def esegui_esportazione(self):
-        colore_scelto = self.colore_selezionato.get()
-        colori_da_processare = self.colori_reali if colore_scelto == "Tutti i colori" else [colore_scelto]
-        
-        formato_scelto = self.formato_var.get()
-        ext = formato_scelto.lower()
-        formato_pil = "JPEG" if formato_scelto == "JPG" else formato_scelto
-
-        if self.modo_var.get() == "singolo":
-            cartella_dest = filedialog.askdirectory(title="Dove salvare l'immagine?")
-            if not cartella_dest: return
-            
-            nome_base = os.path.splitext(os.path.basename(self.file_singolo))[0]
-            try:
-                for col in colori_da_processare:
-                    img = self.genera_immagine_hd(self.file_singolo, col)
-                    nome_file = f"{nome_base}-{col.lower()}-HD.{ext}"
-                    img.save(os.path.join(cartella_dest, nome_file), format=formato_pil, quality=95)
-                messagebox.showinfo("Fatto", f"Immagine salvata in formato {formato_scelto} con successo!")
-            except Exception as e:
-                messagebox.showerror("Errore", str(e))
-                
-        else: 
-            files = [f for f in os.listdir(self.cartella_batch) if f.lower().endswith((".png", ".jpg", ".jpeg")) and not f.startswith("._")]
-            totale = len(files) * len(colori_da_processare)
-            self.progress_bar["maximum"] = totale
-            self.progress_var.set(0)
-            self.btn_esporta.config(state="disabled")
-
-            cartella_output = os.path.join(self.cartella_batch, f"FILE_MOCKUP_{formato_scelto}")
-            os.makedirs(cartella_output, exist_ok=True)
-
-            operazione = 0
-            for file in files:
-                percorso_completo = os.path.join(self.cartella_batch, file)
-                nome_base = os.path.splitext(file)[0]
-
-                for col in colori_da_processare:
-                    operazione += 1
-                    nome_file_output = f"{nome_base}-{col.lower()}-HD.{ext}"
-                    self.lbl_progress.config(text=f"{operazione}/{totale} - {nome_file_output}")
-                    self.progress_var.set(operazione)
-                    self.root.update()
-
-                    try:
-                        img = self.genera_immagine_hd(percorso_completo, col)
-                        img.save(os.path.join(cartella_output, nome_file_output), format=formato_pil, quality=95)
-                    except Exception as e:
-                        print(f"Errore su {file}: {e}")
-
-            self.lbl_progress.config(text="Completato!")
-            self.btn_esporta.config(state="normal")
-            messagebox.showinfo("Fatto", f"Batch completato! Tutti i file salvati in formato {formato_scelto}.")
+            print(f"Errore durante l'aggiornamento dell'anteprima: {e}")
 
     def apri_cartella_os(self):
-        if IS_MAC:
-            subprocess.Popen(["open", self.cartella_esterna])
-        elif platform.system() == "Windows":
-            os.startfile(self.cartella_esterna)
+        path = self.cartella_esterna
+        if not os.path.exists(path):
+            os.makedirs(path, exist_ok=True)
+            
+        if platform.system() == "Windows":
+            os.startfile(path)
+        elif platform.system() == "Darwin":
+            subprocess.Popen(["open", path])
         else:
-            subprocess.Popen(["xdg-open", self.cartella_esterna])
+            subprocess.Popen(["xdg-open", path])
+
+    def esegui_esportazione(self):
+        disegni = []
+        if self.modo_var.get() == "singolo":
+            if not self.file_singolo:
+                messagebox.showerror("Errore", "Seleziona un disegno prima di esportare.")
+                return
+            disegni.append(self.file_singolo)
+        else:
+            if not self.cartella_batch:
+                messagebox.showerror("Errore", "Seleziona una cartella prima di esportare.")
+                return
+            disegni = [os.path.join(self.cartella_batch, f) for f in os.listdir(self.cartella_batch) 
+                       if f.lower().endswith((".png", ".jpg", ".jpeg")) and not f.startswith("._")]
+            if not disegni:
+                messagebox.showerror("Errore", "Nessuna immagine trovata nella cartella selezionata.")
+                return
+
+        colore_scelto = self.colore_selezionato.get()
+        colori_da_elaborare = []
+        if colore_scelto == "Tutti i colori":
+            colori_da_elaborare = self.colori_reali
+        else:
+            colori_da_elaborare = [colore_scelto]
+
+        cartella_output = filedialog.askdirectory(title="Seleziona dove salvare i mockup")
+        if not cartella_output:
+            return
+
+        totale_operazioni = len(disegni) * len(colori_da_elaborare)
+        passo = 0
+        self.progress_var.set(0)
+        self.lbl_progress.config(text="ELABORAZIONE IN CORSO...")
+        self.root.update()
+
+        try:
+            for disegno_path in disegni:
+                design_name = os.path.splitext(os.path.basename(disegno_path))[0]
+                design_img = Image.open(disegno_path).convert("RGBA")
+
+                w_percent = (self.resize_width / float(design_img.size[0]))
+                h_size = int((float(design_img.size[1]) * float(w_percent)))
+                design_resized = design_img.resize((self.resize_width, h_size), Image.Resampling.LANCZOS)
+
+                for colore in colori_da_elaborare:
+                    mockup_path = self.mappa_modelli[colore]
+                    mockup_img = Image.open(mockup_path).convert("RGBA")
+
+                    if self.rimuovi_sfondo_maglietta.get():
+                        mockup_img = self.scontorna_mockup(mockup_img)
+
+                    combined = Image.new("RGBA", mockup_img.size, (0, 0, 0, 0))
+                    combined.paste(mockup_img, (0, 0))
+
+                    paste_x = int(self.offset_x - (self.resize_width / 2))
+                    paste_y = int(self.offset_y - (h_size / 2))
+
+                    combined.paste(design_resized, (paste_x, paste_y), mask=design_resized)
+
+                    formato = self.formato_var.get().upper()
+                    if formato == "PNG" or formato == "WEBP":
+                        if not self.sfondo_trasparente.get():
+                            background = Image.new("RGBA", combined.size, (255, 255, 255, 255))
+                            background.paste(combined, (0, 0), mask=combined)
+                            combined = background.convert("RGB")
+                    else:  # JPG
+                        background = Image.new("RGBA", combined.size, (255, 255, 255, 255))
+                        background.paste(combined, (0, 0), mask=combined)
+                        combined = background.convert("RGB")
+
+                    nome_file_output = f"{design_name}_{colore}.{formato.lower()}"
+                    salva_path = os.path.join(cartella_output, nome_file_output)
+                    
+                    if formato == "JPG":
+                        combined.save(salva_path, "JPEG", quality=95)
+                    elif formato == "WEBP":
+                        combined.save(salva_path, "WEBP", quality=95)
+                    else:
+                        combined.save(salva_path, "PNG")
+
+                    passo += 1
+                    percentuale = (passo / totale_operazioni) * 100
+                    self.progress_var.set(percentuale)
+                    self.lbl_progress.config(text=f"PROCESSO: {int(percentuale)}% ({passo}/{totale_operazioni})")
+                    self.root.update()
+
+            self.lbl_progress.config(text="COMPLETATO CON SUCCESSO! ✅")
+            messagebox.showinfo("Successo", f"Esportazione completata!\nSalvati {totale_operazioni} file in:\n{cartella_output}")
+        except Exception as e:
+            self.lbl_progress.config(text="ERRORE DURANTE L'ELABORAZIONE ❌")
+            messagebox.showerror("Errore di Rendering", f"Si è verificato un errore durante l'esportazione:\n{e}")
+        finally:
+            self.progress_var.set(0)
 
 if __name__ == "__main__":
     root = tk.Tk()
