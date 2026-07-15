@@ -6,7 +6,7 @@ on:
 jobs:
   build_mac:
     # Usiamo macos-13 (Intel) così l'app finale funzionerà sia sui Mac Intel sia sui Mac M1/M2/M3/M4 tramite Rosetta!
-    runs-on: macos-13
+    runs-on: macos-14
     steps:
       - name: Scarica il codice
         uses: actions/checkout@v4
