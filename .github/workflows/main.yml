@@ -5,13 +5,15 @@ on:
     branches: [ "main", "master" ]
   workflow_dispatch:
 
+# Sblocca i permessi per poter creare la Release pubblica
+permissions:
+  contents: write
+
 jobs:
   build:
-    # Usa il server macOS 14 (Sonoma) attualmente supportato da GitHub
     runs-on: macos-14
 
     env:
-      # Forza la compatibilità minima del compilatore a macOS 10.15 (Catalina)
       MACOSX_DEPLOYMENT_TARGET: "10.15"
 
     steps:
@@ -19,13 +21,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Configura Python 3.11 (versione ufficiale Universal2 che supporta sia Intel che Apple Silicon)
+      # 2. Configura Python 3.11
       - name: Configura Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      # 3. Installa le librerie forzando l'architettura Intel (x86_64) tramite Rosetta 2
+      # 3. Installa le librerie forzando l'architettura Intel (x86_64)
       - name: Installa dipendenze (Intel emulation)
         run: |
           arch -x86_64 python3 -m pip install --upgrade pip
@@ -46,9 +48,21 @@ jobs:
           cd dist
           zip -r ../Mockupper_Mac_Catalina.zip Mockupper.app
 
-      # 6. Carica il file compresso negli Artifacts di GitHub
+      # 6. Carica comunque il file negli Artifacts (di riserva)
       - name: Carica file finale (Artifact)
         uses: actions/upload-artifact@v4
         with:
           name: Mockupper_Mac_Catalina
           path: Mockupper_Mac_Catalina.zip
+
+      # 7. CREA LA RELEASE AUTOMATICA (Questo ti salverà la vita!)
+      - name: Pubblica Release per il download diretto
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v3.0-${{ github.run_number }}"
+          name: "Mockupper Pro v3.0 (Build ${{ github.run_number }})"
+          draft: false
+          prerelease: false
+          files: Mockupper_Mac_Catalina.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
