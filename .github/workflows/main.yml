@@ -19,7 +19,7 @@ jobs:
         run: pip install pyinstaller pillow
 
       - name: Compila per Mac (Universale)
-        # ⚠️ QUI SOTTO: Cancella NOME_DEL_TUO_FILE.py e scrivi il nome esatto del tuo file!
+        # ✅ CORREZIONE: Inserito il nome esatto del tuo file Python
         run: pyinstaller --noconsole --windowed --target-architecture universal2 generatore_automatico_cuore.py
 
       - name: Comprimi l'App
@@ -28,7 +28,6 @@ jobs:
           zip -r App_Mac.zip *.app
 
       - name: Salva il file finale
-        # ✅ QUI ABBIAMO RISOLTO L'ERRORE DI DEPRECAZIONE!
         uses: actions/upload-artifact@v4
         with:
           name: App-Mac
