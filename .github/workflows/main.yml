@@ -1,49 +1,54 @@
-name: Compila App per Mac Intel
+name: Compila App Mac (Catalina Retrocompatibile)
 
 on:
+  push:
+    branches: [ "main", "master" ]
   workflow_dispatch:
 
 jobs:
-  build_mac:
+  build:
+    # Usa il server macOS 14 (Sonoma) attualmente supportato da GitHub
     runs-on: macos-14
-    
+
+    env:
+      # Forza la compatibilità minima del compilatore a macOS 10.15 (Catalina)
+      MACOSX_DEPLOYMENT_TARGET: "10.15"
+
     steps:
-      - name: Scarica il codice
+      # 1. Scarica il codice dal tuo repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Configura Python
+      # 2. Configura Python 3.11 (versione ufficiale Universal2 che supporta sia Intel che Apple Silicon)
+      - name: Configura Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Installa dipendenze (Intel x86_64)
+      # 3. Installa le librerie forzando l'architettura Intel (x86_64) tramite Rosetta 2
+      - name: Installa dipendenze (Intel emulation)
         run: |
-          arch -x86_64 python -m pip install --upgrade pip
-          # Abbiamo aggiunto tkmacosx qui alla fine!
-          arch -x86_64 python -m pip install pyinstaller pillow tkmacosx
+          arch -x86_64 python3 -m pip install --upgrade pip
+          arch -x86_64 python3 -m pip install pyinstaller Pillow tkmacosx
 
-      - name: Compila con PyInstaller (Intel x86_64)
+      # 4. Compila l'applicazione forzando l'architettura Intel
+      - name: Compila con PyInstaller (Intel target)
         run: |
-          rm -f *.spec
-          arch -x86_64 pyinstaller --noconsole --windowed generatore_automatico_cuore.py
+          arch -x86_64 pyinstaller --noconfirm --onedir --windowed \
+            --target-arch x86_64 \
+            --add-data "modelli_magliette:modelli_magliette" \
+            --name "Mockupper" \
+            generatore_automatico_cuore.py
 
-      - name: Comprimi l'App con la cartella magliette
+      # 5. Comprime l'applicazione .app in un archivio .zip
+      - name: Comprime l'applicazione .app
         run: |
-          FOLDER=$(find . -maxdepth 1 -type d -iname "*modelli*magliette*" | head -n 1)
-          if [ -n "$FOLDER" ]; then
-            echo "Cartella magliette trovata: $FOLDER"
-            cp -r "$FOLDER" dist/modelli_magliette
-          else
-            echo "❌ ERRORE: La cartella 'modelli_magliette' non è stata trovata!"
-            ls -la
-            exit 1
-          fi
-          
           cd dist
-          zip -r App_Mac.zip generatore_automatico_cuore.app modelli_magliette
+          zip -r ../Mockupper_Mac_Catalina.zip Mockupper.app
 
-      - name: Salva il file finale (Artifact)
+      # 6. Carica il file compresso negli Artifacts di GitHub
+      - name: Carica file finale (Artifact)
         uses: actions/upload-artifact@v4
         with:
-          name: App-Mac
-          path: dist/App_Mac.zip
+          name: Mockupper_Mac_Catalina
+          path: Mockupper_Mac_Catalina.zip
