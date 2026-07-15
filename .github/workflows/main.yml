@@ -5,7 +5,6 @@ on:
 
 jobs:
   build_mac:
-    # Usiamo macos-14 così parte all'istante senza code!
     runs-on: macos-14
     
     steps:
@@ -19,32 +18,28 @@ jobs:
 
       - name: Installa dipendenze (Intel x86_64)
         run: |
-          # Usiamo 'arch -x86_64' per forzare pip a scaricare le librerie Intel
           arch -x86_64 python -m pip install --upgrade pip
-          arch -x86_64 python -m pip install pyinstaller pillow
+          # Abbiamo aggiunto tkmacosx qui alla fine!
+          arch -x86_64 python -m pip install pyinstaller pillow tkmacosx
 
       - name: Compila con PyInstaller (Intel x86_64)
         run: |
           rm -f *.spec
-          # Compiliamo il tuo script specifico forzando l'architettura Intel
           arch -x86_64 pyinstaller --noconsole --windowed generatore_automatico_cuore.py
 
       - name: Comprimi l'App con la cartella magliette
         run: |
-          # Cerchiamo la cartella modelli_magliette
           FOLDER=$(find . -maxdepth 1 -type d -iname "*modelli*magliette*" | head -n 1)
           if [ -n "$FOLDER" ]; then
             echo "Cartella magliette trovata: $FOLDER"
             cp -r "$FOLDER" dist/modelli_magliette
           else
             echo "❌ ERRORE: La cartella 'modelli_magliette' non è stata trovata!"
-            echo "Ecco i file presenti su GitHub:"
             ls -la
             exit 1
           fi
           
           cd dist
-          # Zippiamo l'app Intel creata e la cartella delle magliette
           zip -r App_Mac.zip generatore_automatico_cuore.app modelli_magliette
 
       - name: Salva il file finale (Artifact)
