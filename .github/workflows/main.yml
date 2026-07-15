@@ -1,11 +1,11 @@
-name: Compila App per Mac (Universal)
+name: Compila App per Mac
 
 on:
   workflow_dispatch:
 
 jobs:
   build_mac:
-    runs-on: macos-latest
+    runs-on: macos-13
     steps:
       - name: Scarica il codice
         uses: actions/checkout@v4
@@ -18,9 +18,9 @@ jobs:
       - name: Installa librerie
         run: pip install pyinstaller pillow
 
-      - name: Compila per Mac (Universale)
-        # ✅ CORREZIONE: Inserito il nome esatto del tuo file Python
-        run: pyinstaller --noconsole --windowed --target-architecture universal2 generatore_automatico_cuore.py
+      - name: Compila per Mac
+        # Ho rimosso il parametro che faceva crashare Pillow
+        run: pyinstaller --noconsole --windowed generatore_automatico_cuore.py
 
       - name: Comprimi l'App
         run: |
