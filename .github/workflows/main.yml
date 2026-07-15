@@ -1,48 +1,38 @@
-name: Compila App per Mac
+name: Build per Mac Intel (iMac Elisa)
 
-on:
-  workflow_dispatch:
+on: [push, workflow_dispatch]
 
 jobs:
-  build_mac:
-    # Usiamo macos-13 (Intel) così l'app finale funzionerà sia sui Mac Intel sia sui Mac M1/M2/M3/M4 tramite Rosetta!
-    runs-on: macos-14
+  build:
+    # Usiamo macOS 14 (Apple Silicon), che parte all'istante
+    runs-on: macos-14  
+
     steps:
-      - name: Scarica il codice
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Installa Python
+      # Configura Python specificando l'architettura x64 (Intel)
+      - name: Set up Python x64 (Intel)
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'  # Consigliato 3.11 o 3.12 per evitare problemi di librerie su macOS 14
+          architecture: 'x64'     # <--- QUESTO FORZA LA COMPILAZIONE INTEL!
 
-      - name: Installa librerie
-        run: pip install pyinstaller pillow
-
-      - name: Compila per Mac
-        # ✅ Cancelliamo qualsiasi file .spec esistente per evitare l'errore "not a fat binary"
+      - name: Installa dipendenze
         run: |
-          rm -f *.spec
-          pyinstaller --noconsole --windowed generatore_automatico_cuore.py
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          # Se hai un file requirements.txt, scommenta la riga sotto:
+          # pip install -r requirements.txt
 
-      - name: Comprimi l'App con la cartella magliette
-        # ✅ Cerchiamo la cartella modelli_magliette in modo intelligente (case-insensitive)
+      - name: Build con PyInstaller
         run: |
-          FOLDER=$(find . -maxdepth 1 -type d -iname "*modelli*magliette*" | head -n 1)
-          if [ -n "$FOLDER" ]; then
-            echo "Cartella magliette trovata: $FOLDER"
-            cp -r "$FOLDER" dist/modelli_magliette
-          else
-            echo "❌ ERRORE: La cartella delle magliette non è stata trovata sul tuo repository GitHub!"
-            echo "Ecco i file attualmente presenti nel tuo repository:"
-            ls -la
-            exit 1
-          fi
-          cd dist
-          zip -r App_Mac.zip *.app modelli_magliette
+          # PyInstaller compilerà per x86_64 perché sta girando sotto il Python x64 (Rosetta)
+          pyinstaller --onefile il_tuo_script.py
 
-      - name: Salva il file finale
+      # Step per caricare l'eseguibile negli Artifacts (opzionale)
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: App-Mac
-          path: dist/App_Mac.zip
+          name: Mac-Intel-App
+          path: dist/
